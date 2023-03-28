@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+#fixes bug
+service apache2 restart
