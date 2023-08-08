@@ -1,42 +1,51 @@
 #!/usr/bin/python3
-import re
+"""
+    Prints sorted count of given keywords
+"""
 import requests
 
 
-def count_words(subreddit, word_list):
+def count_words(subreddit, word_list, counts={}, after=""):
     """
-    GET the word count for each word in word_list.
-    Print results in descending order by the count, not the title.
-    If no posts match or subreddit is invalid, print a newline.
-    If a word has no matches, skip and do not print it.
+        Recursive function to query Reddit API for given subreddit
+        Prints sorted count of given keywords
     """
-    storage = {word.lower(): 0 for word in word_list}
-    url = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
-    headers = {'user-agent': 'philsrequest'}
-
-    r = requests.get(url, headers=headers)
-    if (r.status_code == 404 or 'data' not in r.json()):
-        return None
+    url = "https://api.reddit.com/r/{}?sort=hot".format(subreddit)
+    if after:
+        url = "{}&after={}".format(url, after)
+    headers = {'User-Agent': 'CustomClient/1.0'}
+    r = requests.get(url, headers=headers, allow_redirects=False)
+    if r.status_code != 200:
+        print_counts(counts)
+        return
+    r = r.json()
+    if 'data' in r:
+        data = r.get('data')
+        if not data.get('children'):
+            return hot_list
+        for post in data.get('children'):
+            for word in post.get('data').get('title').lower().split():
+                if word in word_list:
+                    if word in counts:
+                        counts[word] += 1
+                    else:
+                        counts[word] = 1
+        if not data.get('after'):
+            print_counts(counts)
+        else:
+            count_words(subreddit, word_list, counts, data.get('after'))
     else:
-        while (1):
-            r = r.json()
-            for post in r['data']['children']:
-                tmp = post['data']['title'].split()
-                for word in tmp:
-                    if word.lower() in storage.keys():
-                        storage[word.lower()] += 1
+        print_counts(counts)
 
-            after = r['data']['after']
-            if (after is None):
-                break
-            r = requests.get("{}?after={}".format(url, after), headers=headers)
 
-    storage = [(k, storage[k]) for k in
-               sorted(storage, key=storage.get, reverse=True)]
-
-    if len(storage) == 0:
-        print("")
-    else:
-        for k, v in storage:
-            if (v > 0):
-                print("{}: {:d}".format(k, v))
+def print_counts(counts):
+    """
+        Sort and print values in counts
+    """
+    if not counts:
+        return
+    rev_counts = {}
+    for key, value in counts.items():
+        rev_counts[value] = key
+    for key in sorted(rev_counts, reverse=True):
+        print("{}: {:d}".format(rev_counts[key], key))
