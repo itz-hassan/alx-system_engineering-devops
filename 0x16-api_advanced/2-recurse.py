@@ -1,24 +1,37 @@
 #!/usr/bin/python3
-""" 2 - gather data from reddit """
+"""
+Recursive function that queries the Reddit API and returns
+a list containing the titles of all hot articles for a given subreddit.
+If no results are found for the given subreddit,
+the function should return None.
+"""
+
 import requests
 
 
+def recurse(subreddit, hot_list=[], after=""):
+    """
+    Queries the Reddit API and returns
+    a list containing the titles of all hot articles for a given subreddit.
 
-def recurse(subreddit, nextPage=None, hotList=[]):
-    baseUrl = "https://www.reddit.com/r/{}/hot.json".format(subreddit)
-    if nextPage:
-        baseUrl = baseUrl + "?after={}".format(nextPage)
+    - If not a valid subreddit, return None.
+    """
+    req = requests.get(
+        "https://www.reddit.com/r/{}/hot.json".format(subreddit),
+        headers={"User-Agent": "Custom"},
+        params={"after": after},
+    )
 
-    res = requests.get(baseUrl, allow_redirects=False).json()
+    if req.status_code == 200:
+        for get_data in req.json().get("data").get("children"):
+            dat = get_data.get("data")
+            title = dat.get("title")
+            hot_list.append(title)
+        after = req.json().get("data").get("after")
 
-    if "data" not in res:
-        return None
-
-    if "children" in res['data']:
-        for child in res['data']['children']:
-            hotList.append(child['data']['title'])
-    
-    if res['data']['after'] is not None:
-        return recurse(subreddit, nextPage=res['data']['after'], hotList=hotList)
+        if after is None:
+            return hot_list
+        else:
+            return recurse(subreddit, hot_list, after)
     else:
-        return hotList
+        return None
